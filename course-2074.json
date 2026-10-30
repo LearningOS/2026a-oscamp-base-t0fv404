@@ -2,7 +2,7 @@
   "schema": 1,
   "courseId": 2074,
   "repository": "LearningOS/2026a-oscamp-base-t0fv404",
-  "commit": "8a170d59b13ad797ef52dfddd4ef0a3b1882f0d8",
+  "commit": "71345e77eda4e16b1e979d6fc284c8cfa93ec6ea",
   "score": 15,
   "totalScore": 100,
   "exercises": [
@@ -176,9 +176,9 @@
     }
   ],
   "student": "t0fv404",
-  "runId": "39193315988",
+  "runId": "41076678725",
   "runAttempt": "1",
   "upload": {
-    "status": "accepted"
+    "status": "pending"
   }
 }
