@@ -28,6 +28,7 @@
 
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
+use std::sync::atomic::Ordering::{AcqRel, Acquire, Release};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Maximum number of concurrent readers (fits in state bits).
@@ -63,7 +64,16 @@ impl<T> RwLock<T> {
     /// 4. Try compare_exchange(s, s + 1, AcqRel, Acquire); on success return RwLockReadGuard { lock: self }.
     pub fn read(&self) -> RwLockReadGuard<'_, T> {
         // TODO
-        todo!()
+        loop {
+            let state = self.state.load(Acquire);
+            if state & !READER_MASK > 0 || state == READER_MASK {
+                continue;
+            }
+            if let Err(_) = self.state.compare_exchange(state, state + 1, AcqRel, Acquire) {
+                continue;
+            }
+            return RwLockReadGuard { lock: self };
+        }
     }
 
     /// Acquire the write lock. Blocks until no readers and no other writer.
@@ -75,7 +85,17 @@ impl<T> RwLock<T> {
     /// 4. On success return RwLockWriteGuard { lock: self }.
     pub fn write(&self) -> RwLockWriteGuard<'_, T> {
         // TODO
-        todo!()
+        self.state.fetch_or(WRITER_WAITING, Release);
+        loop {
+            let state = self.state.load(Acquire);
+            if state & READER_MASK > 0 || state & WRITER_HOLDING > 0 {
+                continue;
+            }
+            if let Err(_) = self.state.compare_exchange(WRITER_WAITING, WRITER_HOLDING, AcqRel, Acquire) {
+                continue;
+            }
+            return RwLockWriteGuard { lock: self }
+        }
     }
 }
 
@@ -90,7 +110,7 @@ impl<T> Deref for RwLockReadGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        todo!()
+        unsafe { &*self.lock.data.get() }
     }
 }
 
@@ -98,7 +118,7 @@ impl<T> Deref for RwLockReadGuard<'_, T> {
 // Decrement reader count: self.lock.state.fetch_sub(1, Ordering::Release)
 impl<T> Drop for RwLockReadGuard<'_, T> {
     fn drop(&mut self) {
-        todo!()
+        self.lock.state.fetch_sub(1, Release);
     }
 }
 
@@ -113,7 +133,7 @@ impl<T> Deref for RwLockWriteGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        todo!()
+        unsafe { &*self.lock.data.get() }
     }
 }
 
@@ -121,7 +141,7 @@ impl<T> Deref for RwLockWriteGuard<'_, T> {
 // Return mutable reference: unsafe { &mut *self.lock.data.get() }
 impl<T> DerefMut for RwLockWriteGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
-        todo!()
+        unsafe { &mut *self.lock.data.get() }
     }
 }
 
@@ -129,7 +149,7 @@ impl<T> DerefMut for RwLockWriteGuard<'_, T> {
 // Clear writer bits so lock is free: self.lock.state.fetch_and(!(WRITER_HOLDING | WRITER_WAITING), Ordering::Release)
 impl<T> Drop for RwLockWriteGuard<'_, T> {
     fn drop(&mut self) {
-        todo!()
+        self.lock.state.fetch_and(!(WRITER_HOLDING | WRITER_WAITING), Ordering::Release);
     }
 }
 
