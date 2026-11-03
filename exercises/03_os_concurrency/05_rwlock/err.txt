@@ -1,0 +1,4 @@
+   Compiling rwlock v0.1.0 (C:\Users\Name\Desktop\works\2026a-oscamp-base-t0fv404\exercises\03_os_concurrency\05_rwlock)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+     Running unittests src\lib.rs (C:\Users\Name\Desktop\works\2026a-oscamp-base-t0fv404\target\debug\deps\rwlock-2c86fc5883fdc0a4.exe)
+   Doc-tests rwlock

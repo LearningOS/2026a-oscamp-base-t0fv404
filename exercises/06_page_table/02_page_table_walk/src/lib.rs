@@ -98,6 +98,9 @@ impl SingleLevelPageTable {
         let vpn = (va >> PAGE_OFFSET_BITS) as usize;
         let offset = va & ((1 << PAGE_OFFSET_BITS) - 1);
         if let Some(pte) = self.lookup(vpn) {
+            if pte.flags & PTE_VALID == 0 {
+                return PageFault;
+            }
             if pte.flags & PTE_WRITE == 0 && is_write {
                 return TranslateResult::PermissionDenied
             }

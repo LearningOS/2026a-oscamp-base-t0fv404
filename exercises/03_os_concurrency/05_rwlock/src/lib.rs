@@ -84,19 +84,23 @@ impl<T> RwLock<T> {
     /// 3. Try compare_exchange(WRITER_WAITING, WRITER_HOLDING, ...) to take the lock; or compare_exchange(0, WRITER_HOLDING, ...) if a writer just released.
     /// 4. On success return RwLockWriteGuard { lock: self }.
     pub fn write(&self) -> RwLockWriteGuard<'_, T> {
-        // TODO
-        self.state.fetch_or(WRITER_WAITING, Release);
-        loop {
-            let state = self.state.load(Acquire);
-            if state & READER_MASK > 0 || state & WRITER_HOLDING > 0 {
-                continue;
-            }
-            if let Err(_) = self.state.compare_exchange(WRITER_WAITING, WRITER_HOLDING, AcqRel, Acquire) {
-                continue;
-            }
-            return RwLockWriteGuard { lock: self }
-        }
-    }
+       self.state.fetch_or(WRITER_WAITING, Release);
+       loop {
+           let state = self.state.load(Acquire);
+           if state & (READER_MASK | WRITER_HOLDING) == 0 {
+               if self
+                   .state
+                   .compare_exchange(state, WRITER_HOLDING, AcqRel, Acquire)
+                   .is_ok()
+               {
+                   return RwLockWriteGuard { lock: self };
+               }
+           } else {
+               self.state.fetch_or(WRITER_WAITING, Release);
+           }
+           std::hint::spin_loop();
+       }
+   }
 }
 
 /// Guard for a read lock; releases the read lock on drop.
